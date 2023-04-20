@@ -1,8 +1,20 @@
-FROM rust:1.68.2 as builder
+FROM lukemathwalker/cargo-chef:latest-rust-1.68.2 as chef
 
 WORKDIR /app
 
 RUN apt update && apt install lld clang -y
+
+FROM chef as planner
+
+COPY . .
+# Compute the dependencies
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef as builder
+COPY --from=planner /app/recipe.json recipe.json
+
+# Build the dependencies
+RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
 
@@ -19,7 +31,6 @@ RUN apt-get update -y \
   && apt-get autoremove -y \
   && apt-get clean -y \
   && rm -rf /var/lib/apt/lists/*
-
 
 COPY --from=builder /app/target/release/zero2prod zero2prod
 
