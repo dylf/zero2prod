@@ -4,7 +4,7 @@ use anyhow::Context;
 use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
@@ -48,13 +48,13 @@ pub async fn subscribe(
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+    let subscriber_id = insert_subscriber(&mut *transaction, &new_subscriber)
         .await
         .context("Failed to insert new subscriber into the database.")?;
 
     let subscription_token = generate_subscription_token();
 
-    store_token(&mut transaction, subscriber_id, &subscription_token)
+    store_token(&mut *transaction, subscriber_id, &subscription_token)
         .await
         .context("Failed to store confirmation token for new subscriber.")?;
 
@@ -110,7 +110,7 @@ pub async fn send_confirmation_email(
     skip(new_subscriber, transaction)
 )]
 pub async fn insert_subscriber(
-    transaction: &mut Transaction<'_, Postgres>,
+    transaction: &mut PgConnection,
     new_subscriber: &NewSubscriber,
 ) -> Result<Uuid, sqlx::Error> {
     let subscriber_id = Uuid::new_v4();
@@ -142,7 +142,7 @@ pub fn generate_subscription_token() -> String {
     skip(transaction, subscriber_id, subscription_token)
 )]
 pub async fn store_token(
-    transaction: &mut Transaction<'_, Postgres>,
+    transaction: &mut PgConnection,
     subscriber_id: Uuid,
     subscription_token: &str,
 ) -> Result<(), StoreTokenError> {
