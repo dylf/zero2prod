@@ -48,13 +48,13 @@ pub async fn subscribe(
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    let subscriber_id = insert_subscriber(&mut *transaction, &new_subscriber)
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
         .await
         .context("Failed to insert new subscriber into the database.")?;
 
     let subscription_token = generate_subscription_token();
 
-    store_token(&mut *transaction, subscriber_id, &subscription_token)
+    store_token(&mut transaction, subscriber_id, &subscription_token)
         .await
         .context("Failed to store confirmation token for new subscriber.")?;
 
